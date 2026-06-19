@@ -2,7 +2,9 @@ package unlar.com.PrimerParcialProg3.Controllers;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
-import unlar.com.PrimerParcialProg3.service.AlquilerService; // ← sin "s"
+import unlar.com.PrimerParcialProg3.service.AlquilerService;
+import unlar.com.PrimerParcialProg3.Dto.AlquilerResponseDTO;
+import unlar.com.PrimerParcialProg3.Dto.ErrorResponseDTO;
 import java.util.Map;
 
 @RestController
@@ -16,16 +18,28 @@ public class AlquilerController {
     }
 
     @GetMapping("/desbloquear")
-    public ResponseEntity<String> desbloquear(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> desbloquear(@RequestBody Map<String, String> body) {
         try {
-            String resultado = alquilerService.desbloquear(
+            AlquilerResponseDTO resultado = alquilerService.desbloquear(
                 body.get("idUsuario"),
                 body.get("patente"),
                 body.get("metodoPago")
             );
             return ResponseEntity.ok(resultado);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(new ErrorResponseDTO(e.getMessage(), 400));
+        }
+    }
+
+    @GetMapping("/finalizar")
+    public ResponseEntity<?> finalizar(@RequestBody Map<String, String> body) {
+        try {
+            String patente = body.get("patente");
+            int minutos = Integer.parseInt(body.get("minutos"));
+            AlquilerResponseDTO resultado = alquilerService.finalizar(patente, minutos);
+            return ResponseEntity.ok(resultado);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ErrorResponseDTO(e.getMessage(), 400));
         }
     }
 }

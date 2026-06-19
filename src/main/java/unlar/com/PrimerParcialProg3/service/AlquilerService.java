@@ -7,15 +7,19 @@ import unlar.com.PrimerParcialProg3.Estacion.EstacionAnclaje;
 import unlar.com.PrimerParcialProg3.models.*;
 import unlar.com.PrimerParcialProg3.pago.FabricaPago;
 import unlar.com.PrimerParcialProg3.pago.ProcesadorPago;
+import unlar.com.PrimerParcialProg3.Tarifa.TarifaService;
+import unlar.com.PrimerParcialProg3.Dto.AlquilerResponseDTO;
 
 @Service
 public class AlquilerService {
     private List<Usuario> usuarios = new ArrayList<>();
     private EstacionAnclaje estacion;
     private final FabricaPago fabricaPago;
+    private final TarifaService tarifaService;
 
-    public AlquilerService(FabricaPago fabricaPago) {
+    public AlquilerService(FabricaPago fabricaPago, TarifaService tarifaService) {
         this.fabricaPago = fabricaPago;
+        this.tarifaService = tarifaService;
         cargarDatos();
     }
 
@@ -28,7 +32,7 @@ public class AlquilerService {
         estacion.agregarVehiculo(new BicicletaElectrica("GHI789", 60, 450.0, 5000));
     }
 
-    public String desbloquear(String idUsuario, String patente, String metodoPago) {
+    public AlquilerResponseDTO desbloquear(String idUsuario, String patente, String metodoPago) {
         Usuario usuario = null;
         for (Usuario u : usuarios) {
             if (u.getId().equals(idUsuario)) { usuario = u; break; }
@@ -46,8 +50,36 @@ public class AlquilerService {
         ProcesadorPago procesador = fabricaPago.crear(metodoPago);
         procesador.cobrar(total);
 
-        return "Rodado desbloqueado: " + vehiculo.getPatente()
-             + " | Monto cobrado: $" + total
-             + " | Método: " + procesador.getNombre();
+        vehiculo.alquilar(); // dispara la transición de estado: EnEspera -> EnViaje
+
+        return new AlquilerResponseDTO(
+            vehiculo.getPatente(),
+            total,
+            0,
+            vehiculo.getEstado().getNombre()
+        );
+    }
+
+    public AlquilerResponseDTO finalizar(String patente, int minutos) {
+        Vehiculo vehiculo = estacion.buscarPorPatente(patente);
+        if (vehiculo == null) throw new RuntimeException("Vehículo No Encontrado");
+
+        double costoFinal = tarifaService.calcularCosto(minutos, vehiculo.getTarifabase());
+        vehiculo.finalizarViaje(); // dispara la transición de estado: EnViaje -> EnEspera
+
+        return new AlquilerResponseDTO(
+            vehiculo.getPatente(),
+            costoFinal,
+            minutos,
+            vehiculo.getEstado().getNombre()
+        );
+    }
+
+    public List<Vehiculo> listarPorPrioridadCarga() {
+        return estacion.listarPorPrioridadCarga();
+    }
+
+    public List<Vehiculo> listarPorTarifaDescendente() {
+        return estacion.listarPorTarifaDescendente();
     }
 }
